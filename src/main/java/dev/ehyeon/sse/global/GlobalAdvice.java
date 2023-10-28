@@ -1,5 +1,6 @@
 package dev.ehyeon.sse.global;
 
+import dev.ehyeon.sse.channel.FailedToSendMessageException;
 import dev.ehyeon.sse.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,5 +14,11 @@ public class GlobalAdvice {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String userNotFoundExceptionHandler() {
         return "User Not Found";
+    }
+
+    @ExceptionHandler(FailedToSendMessageException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String failedToSendMessageExceptionHandler() {
+        return "Failed To Send Message";
     }
 }
