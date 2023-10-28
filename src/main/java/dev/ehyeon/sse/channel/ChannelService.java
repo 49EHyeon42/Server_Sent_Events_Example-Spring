@@ -2,28 +2,29 @@ package dev.ehyeon.sse.channel;
 
 import dev.ehyeon.sse.user.User;
 import dev.ehyeon.sse.user.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 
 @Service
+@RequiredArgsConstructor
 public class ChannelService {
 
-    private final SseEmitter sseEmitter;
     private final UserRepository userRepository;
-
-    // 사용자마다 sseEmitter를 만들어야 한다, 실패한 동작
-
-    public ChannelService(UserRepository userRepository) {
-        sseEmitter = new SseEmitter();
-        this.userRepository = userRepository;
-    }
+    private final ChannelRepository channelRepository;
 
     public SseEmitter subscribe(long userId) {
         User foundUser = userRepository.findUserById(userId);
 
-        sendMessage("system", "Connected " + foundUser.getNickname());
+        SseEmitter sseEmitter = new SseEmitter(60 * 1000L);
+        sseEmitter.onCompletion(() -> channelRepository.deleteChannelByUserId(userId));
+        sseEmitter.onTimeout(() -> channelRepository.deleteChannelByUserId(userId));
+
+        channelRepository.saveChannel(userId, sseEmitter);
+
+        sendMessage("system", "Hi, " + foundUser.getNickname());
 
         return sseEmitter;
     }
@@ -35,10 +36,12 @@ public class ChannelService {
     }
 
     private void sendMessage(String nickname, String message) {
-        try {
-            sseEmitter.send(nickname + " : " + message);
-        } catch (IOException exception) {
-            throw new FailedToSendMessageException();
+        for (SseEmitter sseEmitter : channelRepository.findAllSseEmitter()) {
+            try {
+                sseEmitter.send(nickname + " : " + message);
+            } catch (IOException exception) {
+                throw new FailedToSendMessageException();
+            }
         }
     }
 }
